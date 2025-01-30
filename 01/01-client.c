@@ -40,10 +40,14 @@ int main(int argc,char** argv)
     }
     //第四步：读写套接字。  
     //因为TCP是一个没有边界的字节流协议，如果数据量很大，不能保证一次read就能读完对方发来的数据。
-    //所以需要循环读取，直到对方关闭连接（read返回0）或者发生错误（负值）时终止循环。
+    //所以需要循环读取，直到对方关闭连接（read返回0）或者发生错误(负值）时终止循环。
     while((n=read(sockfd,recvline,MAXLINE))>0)
     {
         recvline[n]='\0';
+        //将recvline中的时间戳转换为yyyy-mm-dd hh:mm:ss格式，然后打印到标准输出。
+        if(strchr(recvline,':'))
+            *strchr(recvline,':')='\0';
+        
         if(fputs(recvline,stdout)==EOF)
             perror("fputs error");
     }

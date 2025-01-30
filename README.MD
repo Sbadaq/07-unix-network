@@ -1,10 +1,10 @@
 ## 第一章 简介
 *客户端程序*
-- 创建 套接字
-- 指定 服务器地址和端口
-- 建立与 服务器连接
-- 读入并输出 服务器应答
-- 终止程序
+- 创建 套接字 **socket** 
+- 指定 服务器地址和端口 **htons** , **inet_pton** 
+- 建立与 服务器连接 **connect**
+- 读入并输出 服务器应答 **read**, **write**
+- 终止程序 **close**
 ```
 int main(int argc,char** argv)
 {
@@ -52,11 +52,13 @@ int main(int argc,char** argv)
 ```
 
 *服务器程序*
-- 创建套接字
-- 公开端口绑定到套接字
-- 把套接字转为监听套接字
-- 接受客户连接，发送应答
-- 终止连接
+- 创建套接字 **socket**
+- 初始化服务器地址 **htons**, **htonl** and **inet_pton**
+- 绑定套接字和地址 **bind**
+- 把套接字转为监听套接字 **listen**
+- 接受客户连接  **accept**
+- 读写套接字 **read**, **write**
+- 终止连接 **close**
 ```
 int main(int argc, char *argv[]) {
     int sockfd, connfd;

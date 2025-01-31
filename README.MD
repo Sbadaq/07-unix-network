@@ -13,7 +13,7 @@
 - 建立与 服务器连接 **connect**
 - 读入并输出 服务器应答 **read**, **write**
 - 终止程序 **close**
-```
+```c
 int main(int argc,char** argv)
 {
     int sockfd,n;
@@ -67,7 +67,7 @@ int main(int argc,char** argv)
 - 接受客户连接  **accept**
 - 读写套接字 **read**, **write**
 - 终止连接 **close**
-```
+```c
 int main(int argc, char *argv[]) {
     int sockfd, connfd;
     struct sockaddr_in servaddr, cliaddr;
@@ -161,7 +161,7 @@ TIME_WAIT 连接关闭后，主动关闭方会进入TIME_WAIT状态，2MSL（最
 ### 3.1 套接字地址结构[重点]
 ipv4套接字结构定义 <netinet/in.h>
 
-```C
+```c
 <netinet/in.h>
 <sys/types.h>
 struct in_addr {
@@ -186,7 +186,7 @@ struct sockaddr{
 ```
 int bind(int,struct sockaddr*, socklen_t);
 //应用时需要类型强制转换
-```
+```c
 struct sockaddr_in serv_addr;
 bind(sockfd,(struct sockaddr*)&serv_addr,sizeof(serv_addr));
 ```
@@ -197,7 +197,7 @@ bind(sockfd,(struct sockaddr*)&serv_addr,sizeof(serv_addr));
 网络字节序：大端序
 
 字节排序函数：
-```
+```c
 #include <netinet/in.h>
 uint16_t htons  //host to network short name，16位主机字节转为网络 字节
 uint32_t htonl  //host to network long name，32位主机字节转为网络 字节
@@ -207,7 +207,7 @@ uint32_t ntohl  //network to host long name，32位网络字节转为主机 字�
 ### 3.3 地址转换函数
 字符串地地址转换二进制地址
 
-```
+```c
 #include <string.h>
 void *memset
 void *memcpy
@@ -258,7 +258,7 @@ AF_INET ,AF_INET6, AF_UNIX
 3. 数据传输 **read**, **write**或者 **send**, **recv**
 4. 关闭连接 **close**
 
-```
+```c
 #include <sys/socket.h>
 int socket(int family, int type, int protocol);//成功返回 非负描述符
 int connect(int sockfd,const struct sockaddr *server,socklen_t server_len);//成功返回 0 
@@ -275,11 +275,11 @@ int close(int sockfd);
 ```
 
 ### 4.2 TCP生命周期
-- 三次握手
+1. 三次握手
  - 客户端发送SYN
  - 服务器发送SYN/ACK
  - 客户端发送ACK
-- 四次挥手
+2. 四次挥手
  - 一方发送FIN
  - 另一方发送FIN/ACK
  - 另一方发送ACK
@@ -294,7 +294,7 @@ int close(int sockfd);
     char sa_data[4];
 };
 ```
-ipv4 地址结构
+- ipv4 地址结构
 ```c
 struct sockaddr_in{
     uint8_t sin_len;
@@ -338,14 +338,96 @@ int execv(const char *path, char *const argv[]);
     示例：实现并发和动态加载 
 
 ## 第五章 TCP客户服务器示例
-信号就是软中断, signal 通常是异步发生的，程序不知道 信号发生时刻 。
-无论何时fork 都 需要 wait
-没有办法防止wait在正运行的子进程 尚有未终止的阻塞
-所以 必须调用 waitpid
+### 5.1 本章目标
+- 通过一个完整的TCP客户服务器程序，掌握TCP套接字编程的基本步骤。
+- 理解服务器和客户端的设计与实现
+- 学习如何处理常见的网络编程问题，如僵尸进程和信号处理。
 
+### 5.2 服务器端[重点]
+1. 创建套接字 **socket**
+```c
+int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+```
+2. 绑定套接字 **bind**
+```c
+struct sockaddr_in servaddr;
+servaddr.sin_family = AF_INET;
+servaddr.sin_port = htons(SERV_PORT);
+servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+```
+3. 监听套接字 **listen**
+```c
+listen(sockfd, 5);
+```
+4. 接受连接 **accept**
+```c
+struct sockaddr_in cliaddr;
+socklen_t cliaddr_len = sizeof(cliaddr);
+int connfd = accept(sockfd, (struct sockaddr *)&cliaddr, &cliaddr_len);
+```
+5. 数据传输 **read**, **write**或者 **send**, **recv**
+```c
+char buf[MAXLINE];
+int n = read(connfd, buf, MAXLINE);
+write(connfd, buf, n);
+```
+6. 关闭连接 **close**
+```c
+close(sockfd);
+```
+### 5.3 客户端[重点]
+1. 创建套接字 **socket**
+2. 连接服务器 **connect**
+```c
+struct sockaddr_in servaddr;
+servaddr.sin_family = AF_INET;
+servaddr.sin_port = htons(SERV_PORT);
+inet_pton(AF_INET,"127.0.0.1",&servaddr.sin_addr);
+connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+```
+3. 数据传输 **read**, **write**或者 **send**, **recv**
+```c
+char buf[MAXLINE];
+int n = read(sockfd, buf, MAXLINE);
+write(sockfd, buf, n);
+```
+4. 关闭连接 **close**
+
+### 5.4 信号处理
+信号就是软中断, signal 通常是异步发生的，程序不知道 信号发生时刻 。
+- 处理**SIGCHLD**信号，避免僵尸进程
+- 处理**SIGPIPE**信号，防止客户端断开连接后 服务器崩溃
+### 5.5 僵尸进程
+- 什么是僵尸进程？
+  子进程终止，父进程没有调用wait或waitpid获取子进程的状态信息，子进程进入僵尸状态。
+- 如何避免？
+  无论何时fork 都 需要 wait或者 waitpid 清理僵尸进程。
+```c
+signal(SIGCHLD, sig_chld);//注册信号处理函数
+void sig_chld(int signo) {
+    pid_t pid;
+    int stat;
+    while ((pid = waitpid(-1, &stat, WNOHANG)) > 0)
+        printf("child %d terminated\n", pid);
+    return;
+}
+```
+### 5.6 并发服务器
+使用fork实现并发服务器
+```c
+if (fork() == 0) { //child is already
+    //子进程    
+    close(listenfd);//关闭监听套接字
+    handle_client(connfd);//处理客户请求
+    close(connfd);//关闭连接套接字
+    exit(0);//子进程 退出
+}
+close(connfd);//父进程关闭连接 套接字（但是保留监听套接字）
+```
 
 *解释下面的函数原型*
-```
+```c
 void (*signal(int signo, void (*func)(int)))(int);
 ```
 1. 函数整体结构：函数名为signal,signal函数返回一个指向 函数的指针 ，这个被指向的函数接受 一个int类型参数 并返回 void

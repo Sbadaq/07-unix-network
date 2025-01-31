@@ -1,5 +1,13 @@
 ## 第一章 简介
-*客户端程序*
+### 1.1 网络编程基本步骤
+- TCP 编程
+    - 服务器端: socket()->bind() -> listen() -> accept() -> read()/write() -> close()
+    - 客户端: socket() -> connect() -> read()/write() -> close()
+- UDP 编程
+    - 服务器端: socket() -> bind() -> recvfrom()/sendto() -> close()
+    - 客户端: socket() -> sendto()/recvfrom() -> close()
+
+### 1.2 客户端程序
 - 创建 套接字 **socket** 
 - 指定 服务器地址和端口 **htons** , **inet_pton** 
 - 建立与 服务器连接 **connect**
@@ -51,7 +59,7 @@ int main(int argc,char** argv)
 }
 ```
 
-*服务器程序*
+### 1.3 服务器程序
 - 创建套接字 **socket**
 - 初始化服务器地址 **htons**, **htonl** and **inet_pton**
 - 绑定套接字和地址 **bind**
@@ -95,37 +103,37 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 ```
+### 1.4 字节序
+  htons,htonl,ntohs,htonl
 
 ## 第二章 传输层
-1. 传输层协议
-传输层功能：提供端到端服务
+### 2.1 传输层协议
+- 传输层功能：提供端到端服务
 在网络层之上，增加了可靠性、流量控制、错误检测等功能 
-主要协议：TCP UDP
-UDP 无连接，不可靠，基于数据报。
-不保证数据报最终到达，不保证先后顺序，也不保证 每个报文 只到达一次
-每个UDP 数据报都 有一个长度，而TCP是一个字节流没有边界。
+- 主要协议：TCP UDP
+UDP 无连接，不可靠，基于数据报。不保证数据报最终到达，不保证先后顺序，也不保证 每个报文 只到达一次,每个UDP 数据报都 有一个长度，而TCP是一个字节流没有边界。
 
-2. TCP
-TCP 面向连接，可靠，基于字节流。
-TCP可靠性：确认、重传、校验和、 
-TCP 面向连接：三次握手，四次挥手
-TCP 流量控制：滑动窗口
-TCP 拥塞控制：慢启动、拥塞避免、快速重传、快速恢复
-基于字节流，数据没有边界，需要 程序员自行处理。
+### 2.2 TCP
++ TCP 面向连接，可靠，基于字节流。
++ TCP可靠性：确认、重传、校验和、 
++ TCP 面向连接：三次握手，四次挥手
++ TCP 流量控制：滑动窗口
++ TCP 拥塞控制：慢启动、拥塞避免、快速重传、快速恢复
++ 基于字节流，数据没有边界，需要 程序员自行处理。
 
-TCP 头部：源端口、目的端口、序列号、确认号、标志位、窗口大小、校验和、紧急指针。
-TCP 连接管理 
-三次握手：客户端发SYN，服务器发SYN/ACK，客户端发ACK
-四次挥手：客户端发FIN，服务器发FIN/ACK，服务器发ACK，客户端发ACK
-状态变换：包括CLOSED、LISTEN、SYN_RCVD、ESTABLISHED、CLOSE_WAIT、LAST_ACK、TIME_WAIT
+1) TCP 头部：源端口、目的端口、序列号、确认号、标志位、窗口大小、校验和、紧急指针。
+2) TCP 连接管理 
+- 三次握手：客户端发SYN，服务器发SYN/ACK，客户端发ACK
+- 四次挥手：客户端发FIN，服务器发FIN/ACK，服务器发ACK，客户端发ACK
+3) 状态变换：包括CLOSED、LISTEN、SYN_RCVD、ESTABLISHED、CLOSE_WAIT、LAST_ACK、TIME_WAIT
 粗实线表示 客户状态 转换，粗虚线表示 服务器状态 转换
 
-3. UDP
-UDP 无连接，不可靠，基于数据报。轻量级。
-头部结构：源端口、目的端口、长度、校验和。
-适用场景：实时应用、视频会议、广播、多媒体流、DNS、SNMP、TFTP
+### 2.3 UDP
++ UDP 无连接，不可靠，基于数据报。轻量级。
++ 头部结构：源端口、目的端口、长度、校验和。
++ 适用场景：实时应用、视频会议、广播、多媒体流、DNS、SNMP、TFTP
 
-4.对比
+### 2.4 对比
 特性	|TCP	| UDP
 ---|---|---
 连接性	|面向连接	|无连接
@@ -134,12 +142,13 @@ UDP 无连接，不可靠，基于数据报。轻量级。
 头部开销|	较大（20字节）	|较小（8字节）
 适用场景|	文件传输、Web、电子邮件等	|实时应用、广播、简单查询/响应等
 
-5.编程
-TCP 使用SOCK_STREAM类型，调用 connect(),accept()管理连接
-数据使用send() recv()传输
-UDP 使用SOCK_DGRAM类型，不需要 连接管理 。
-调用 sendto(),recvfrom()管理连接
+### 2.5 编程
+1) TCP 使用SOCK_STREAM类型，调用 connect(),accept()管理连接
+* 数据使用send() recv()传输
+2) UDP 使用SOCK_DGRAM类型，不需要 连接管理 。
+* 调用 sendto(),recvfrom()管理连接
 
+### 2.6 其它但不是不重要的
 IPv4 数据报最大65535 
 IPv4 最小缓冲区大小  576,因此许多udp应用都 避免 产生大于这个大小 的数据报
 应用进程缓冲区，套接字缓冲区
@@ -148,9 +157,11 @@ MSS 最大分段大小 MSS=MTU-IP头部-TCP头部
 TIME_WAIT 连接关闭后，主动关闭方会进入TIME_WAIT状态，2MSL（最大报文生存时间 ）
 确保最后一个ACK到达对端,并防止旧连接的报文 被错误路由到新连接。
 
-# 第二部分 基本套接字
 ## 第三章 套接字
-```
+### 3.1 套接字地址结构[重点]
+ipv4套接字结构定义 <netinet/in.h>
+
+```C
 <netinet/in.h>
 <sys/types.h>
 struct in_addr {
@@ -161,8 +172,11 @@ struct sockaddr_in {
     sa_family_t sa_family; /*AF_INET, AF_INET6, AF_
     in_port_t in_port; /* 16 bit port */
     struct in_addr sin_addr;/*32 bit address*/
-    char sin_zero[8];
+    char sin_zero[8];//not use 
 };
+```
+通用套接字结构定义 <sys/socket.h>
+```c
 <sys/socket.h>
 struct sockaddr{
     uint8_t sa_len;/*address family*/
@@ -176,28 +190,74 @@ int bind(int,struct sockaddr*, socklen_t);
 struct sockaddr_in serv_addr;
 bind(sockfd,(struct sockaddr*)&serv_addr,sizeof(serv_addr));
 ```
-字节排序函数
+### 3.2 字节排序
+字节排序是指 不同机器之间 字节顺序的不同
+- 大端序：高位字节在低地址，低位字节在高地址
+- 小端序：低位字节在低地址，高位字节在高地址
+网络字节序：大端序
+
+字节排序函数：
 ```
 #include <netinet/in.h>
-uint16_t htons  //host to network short name
-uint32_t htonl  //host to network long name
-uint16_t ntohs  //network to host short name
-uint32_t ntohl  //network to host long name
+uint16_t htons  //host to network short name，16位主机字节转为网络 字节
+uint32_t htonl  //host to network long name，32位主机字节转为网络 字节
+uint16_t ntohs  //network to host short name，16位网络字节转为主机 字节
+uint32_t ntohl  //network to host long name，32位网络字节转为主机 字节
 ```
-字节函数
+### 3.3 地址转换函数
+字符串地地址转换二进制地址
+
 ```
 #include <string.h>
 void *memset
 void *memcpy
 int memcmp(void *)
 
-inet_aton
-inet_pton //presentation to numeric address
-inet_ntop //numerical address to presentation
+inet_aton //点分十进制转换为二进制
+inet_ntoa //二进制转换为点分十进制
+inet_pton //字符串地地址转换二进制地址
+inet_ntop //二进制地址转换为字符串地地址
 
 ```
+### 3.4 套接字编程基本步骤
+* TCP 套接字
+1. 创建套接字 **socket**
+2. 绑定套接字 **bind**
+3. 监听套接字 **listen**
+4. 接受连接 **accept**
+5. 建立连接 **connect**（客户端）
+6. 数据传输 **read**, **write**或者 **send**, **recv**
+7. 关闭连接 **close**
 
+* UDP 套接字
+1. 创建套接字 **socket**
+2. 绑定套接字 **bind**
+3. 数据传输 **sendto**, **recvfrom**
+4. 关闭连接 **close**
+
+### 3.5 重要概念
++ sockaddr 与 sockaddr_in的转换
+通常使用 struct sockaddr作为通用套接字类型，实际使用时需要类型强制转换
+将 struct sockaddr_in 转换为 struct sockaddr
++ 地址族
+AF_INET ,AF_INET6, AF_UNIX 
++ 端口号
+0~65535 16位无符号号数 
 ## 第四章 TCP套接字编程
+### 4.1 套接字函数[重点]
+* 服务器端
+1. 创建套接字 **socket**
+2. 绑定套接字 **bind**
+3. 监听套接字 **listen**
+4. 接受连接 **accept**
+5. 数据传输 **read**, **write**或者 **send**, **recv**
+6. 关闭连接 **close**
+* 客户端
+1. 创建套接字 **socket**
+2. 连接服务器 **connect**
+3. 数据传输 **read**, **write**或者 **send**, **recv**
+4. 关闭连接 **close**
+
 ```
 #include <sys/socket.h>
 int socket(int family, int type, int protocol);//成功返回 非负描述符
@@ -214,8 +274,68 @@ pid_t fork();
 int close(int sockfd);
 ```
 
+### 4.2 TCP生命周期
+- 三次握手
+ - 客户端发送SYN
+ - 服务器发送SYN/ACK
+ - 客户端发送ACK
+- 四次挥手
+ - 一方发送FIN
+ - 另一方发送FIN/ACK
+ - 另一方发送ACK
+ - 一方发送FIN
 
+ ### 4.3 地址结构
+ - 通用地址结构
+ ```c
+ struct sockaddr{
+    uint8_t sa_len;/*address family*/
+    sa_family sa_family;/*address type*/
+    char sa_data[4];
+};
+```
+ipv4 地址结构
+```c
+struct sockaddr_in{
+    uint8_t sin_len;
+    sa_family_t sa_family; /*AF_INET, AF_INET6, AF_
+    in_port_t in_port; /* 16 bit port */
+    struct in_addr sin_addr;/*32 bit address*/
+    char sin_zero[8];//not use
+};
+```
+### 4.4 获取地址信息
+```c
+#include <netdb.h>
+struct hostent *gethostbyname(const char *name);
+int getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+int getpeername(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+```
+### 4.5 fork 和exec使用场景 
+- 并发服务器
+ 在服务器中，父进程调用fork创建子进程，子进程处理每个客户端请求，父进程继续监听新的客户端连接。
+- 多任务处理
+ 服务器使用fork创建多个子进程，每个子进程处理一个任务。
+- 守护进程
+ 通过fork创建守护进程，父进程退出，子进程成为守护进程，继续执行任务。
 
+- exec 函数族
+ 调用exec函数族中的函数会替换当前进程的映像，执行新的程序。
+ 进程id不变。
+```c
+#include <unistd.h>
+int execl(const char *path, const char *arg, ...);
+int execlp(const char *file, const char *arg,...);
+int execle(const char *path, const char *arg,...);
+int execv(const char *path, char *const argv[]);
+```
+    - 进程替换
+    - 脚本解释器
+    - 动态加载程序
+    - 系统调用
+- 典型场景 fork 和exec结合使用 
+    在子进程中fork新进程，然后调用exec函数执行新的程序。
+    示例：实现并发和动态加载 
 
 ## 第五章 TCP客户服务器示例
 信号就是软中断, signal 通常是异步发生的，程序不知道 信号发生时刻 。

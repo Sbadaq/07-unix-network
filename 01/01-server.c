@@ -40,7 +40,6 @@ int main(int argc, char *argv[]) {
         ticks = time(NULL);
         snprintf(buf, sizeof(buf), "%.24s\r\n", ctime(&ticks));
         write(connfd, buf, strlen(buf));
-
         //第7步： 关闭连接
         close(connfd);
     }

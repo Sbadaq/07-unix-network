@@ -812,6 +812,43 @@ fcntl 提供的网络特性:
 
 
 ## 第八章 基本UDP
+### 8.1 概述
+udp 是无连接不可靠的数据报协议
+
+```c
+struct sockaddr_in servaddr;
+memset(&servaddr, 0, sizeof(servaddr));
+servaddr.sin_family = AF_INET;
+servaddr.sin_port = htons(1234);
+inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr);
+
+```
+recvfrom和sendto函数，类似于标准的read和send函数，不过需要三个额外的参数。
+```c
+//sendto函数用于发送数据，可指定目标地址。
+sendto(sockfd, sendline, strlen(sendline), 0, (struct sockaddr *)&servaddr, sizeof(servaddr));
+//recvfrom函数用于接收数据，同时可获取发送方的地址信息。
+recvfrom(sockfd, recvline, sizeof(recvline), 0, (struct sockaddr *)&cliaddr, &cliaddr_len);
+
+```
+对于数据报协议，recvfrom返回0是可以 接受的。既然udp是无连接的也不必关闭套接字。
+### 8.2 UDP 相关的问题及解决思路
+
+    数据丢失：由于 UDP 不保证数据的可靠传输，可能会出现数据丢失的情况。可通过应用层的确认机制、重传机制来解决，例如客户端发送数据后等待服务器的确认信息，如果超时未收到确认则重传数据。
+    数据乱序：UDP 不保证数据的顺序性，接收方可能会收到乱序的数据。可在应用层为每个数据包添加序号，接收方根据序号对数据进行排序。
+    UDP 分片：当 UDP 数据报的长度超过网络的最大传输单元（MTU）时，会进行分片。接收方需要对分片的数据进行重组。可使用 IP 首部的相关字段（如标识、标志位、片偏移）来实现数据的重组。
+
+大多数tcp服务器是并发的，而大多数udp是迭代的
+每个udp套接字都 有一个接收缓冲区，大小是有限的。
+如果服务器未运行，客户端 发送数据报，还是可能先发送arp请求，然后收到一个icmp端口不可达消息。
+### 8.3 异步错误
+异步错误是指在套接字上发生的错误，而不是在套接字上执行的操作。
+**connect**
+- 除非套接字已连接，否则异步错误 是不会返回给udp套接字进程的。
+    - 如果udp采用connect,不使用sendto和recvfrom,必须使用write和send 
+    - 如果udp采用connect,不使用recvfrom,而使用read,recv或者 recvmsg 
+- 客户和服务器都 可能调用connect
+udp 发送端淹没接收端是轻而易举之事。
 
 ## 第九章 基本sctp
 

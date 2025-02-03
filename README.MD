@@ -459,24 +459,26 @@ void (*signal(int signo, void (*func)(int)))(int);
 我们必须在客户端使用select或poll函数
 
 
-*** nmap ***
+***nmap***
 nmap is an implementation of the port scanning technique.
 它主要侧重于对网络 中主机和端口进行全面 的探测和分析 ，以帮助网络管理员 识别网络中的安全漏洞、开放端口、服务等信息。甚至可以 根据扫描结果推测出目标主机的操作系统、服务等信息。
-nmap 扫描的方式有：
-1. 端口扫描（Port Scanning）：nmap 可以通过向目标主机的指定端口发送 SYN 数据包来进行端口扫描。如果目标端口开放，则会收到一个 SYN/ACK 响应，否则会收到一个 RST 响应。
-2. 服务识别（Service Identification）：nmap 可以通过向目标主机的指定端口发送特定的数据包来识别目标主机上运行的服务。
-3. 操作系统识别（Operating System Identification）：nmap 可以通过向目标主机的指定端口发送特定的数据包来识别目标主机上运行的操作系统。
-nmap 扫描的过程：
-1. 发送 SYN 数据包到目标主机的指定端口。
-2. 接收响应数据包。
-3. 根据响应数据包的内容判断目标端口的状态。
-nmap 扫描的结果：
-1. 开放端口：目标端口开放，nmap 会显示目标端口的状态为 open。
-2. 关闭端口：目标端口关闭，nmap 会显示目标端口的状态为 closed。
-3. 过滤端口：目标端口被防火墙过滤，nmap 会显示目标端口的状态为 filtered。
-4. 未知端口：目标端口的状态未知，nmap 会显示目标端口的状态为 unknown。
++ nmap 扫描的方式有：
+    1. 端口扫描（Port Scanning）：nmap 可以通过向目标主机的指定端口发送 SYN 数据包来进行端口扫描。如果目标端口开放，则会收到一个 SYN/ACK 响应，否则会收到一个 RST 响应。
+    2. 服务识别（Service Identification）：nmap 可以通过向目标主机的指定端口发送特定的数据包来识别目标主机上运行的服务。
+    3. 操作系统识别（Operating System Identification）：nmap 可以通过向目标主机的指定端口发送特定的数据包来识别目标主机上运行的操作系统。
 
-*** fuser ***
++ nmap 扫描的过程：
+    1. 发送 SYN 数据包到目标主机的指定端口。
+    2. 接收响应数据包。
+    3. 根据响应数据包的内容判断目标端口的状态。
+
++ nmap 扫描的结果：
+    1. 开放端口：目标端口开放，nmap 会显示目标端口的状态为 open。
+    2. 关闭端口：目标端口关闭，nmap 会显示目标端口的状态为 closed。
+    3. 过滤端口：目标端口被防火墙过滤，nmap 会显示目标端口的状态为 filtered。
+    4. 未知端口：目标端口的状态未知，nmap 会显示目标端口的状态为 unknown。
+
+***fuser***
 fuser 是一个用于显示进程使用文件的工具。它可以显示指定文件的所有进程，以及这些进程使用的文件类型。
 侧重于本地系统中进程与端口的关联关系 ，能让用户快速定位到占用某个端口的进程，以便进行调试和优化。
 基于操作系统的进程管理机制和文件 系统的相关信息工作，通过读取/proc文件系统中的信息来获取进程与端口的关联关系。
@@ -530,7 +532,7 @@ struct timeval{
 
 3. 如果一个套接字有带外数据或仍处于带外标记，它有异常条件待处理。
 
-### 6.3 重点系统调用
+### 6.3 系统调用
 终止网络连接的方法通常是使用close,但是它有2个限制，却可以 使用shutdown来避免。
 (1). close会把引用计数减1，当引用计数为0时，才会真正关闭连接。
 (2). close会终止读和写2个方向 的连接，但既然tcp是全双工的，那么它的读半部和写半部都可以关闭。
@@ -689,21 +691,121 @@ int main()
     return 0;
 }
 ```
-### 6.5 select和poll区别
-1.数据结构：select使用fd_set存储文件描述符集合，poll使用pollfd结构体数组存储文件描述符和事件掩码。后者更加直观。
-2.文件描述符数量：select支持的最大文件描述符数量为1024，poll没有限制。
-3.效率：select的效率比poll低，因为每次调用select都需要遍历整个文件描述符集合。
-4.修改文件 描述符：select需要每次调用select前都要重新初始化集合，而poll可以直接修改结构体数组。 
-5.返回值：select 只会返回发生变化的文件描述符数量，而poll返回的是结构体数组中发生变化的元素数量。
+#### elect和poll区别
+1. 数据结构：select使用fd_set存储文件描述符集合，poll使用pollfd结构体数组存储文件描述符和事件掩码。后者更加直观。
+2. 文件描述符数量：select支持的最大文件描述符数量为1024，poll没有限制。
+3. 效率：select的效率比poll低，因为每次调用select都需要遍历整个文件描述符集合。
+4. 修改文件 描述符：select需要每次调用select前都要重新初始化集合，而poll可以直接修改结构体数组。 
+5. 返回值：select 只会返回发生变化的文件描述符数量，而poll返回的是结构体数组中发生变化的元素数量。
 
-我该用哪个？
-1.如果需要支持的文件描述符数量较少，可以使用select。
-2.如果需要支持的文件描述符数量较多，可以使用poll。
+#### 我该用哪个？
+1. 如果需要支持的文件描述符数量较少，可以使用select。
+2. 如果需要支持的文件描述符数量较多，可以使用poll。
 
 C/C++异步IO的开源框架有：AIO,Workflow,libuv,libevent,boost.asio,muduo
 
 
 ## 第七章 套接字选项
+### 7.1 概述
+有很多方法 来影响套接字的行为。
+- getsockopt 和setsockopt函数
+- ioctl函数
+- fcntl函数 设置非阻塞模式、设置信号驱动IO、设置属主的方法函数
+
+### 7.2 获取和设置套接字选项的函数
+```c
+#include <sys/socket.h>
+int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen);
+int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);
+//level is the protocol level at which the option resides
+    - SOL_SOCKET：通用套接字选项。
+    - IPPROTO_IP：IPv4套接字选项。
+    - IPPROTO_TCP：TCP套接字选项。
+    - IPPROTO_IPV6：IPv6套接字选项。
+```
+**常用选项**
+*SO_REUSEADDR* 允许重用本地地址 
+  这个条件通常是这样遇到的：
+    a) 启动一个监听服务器
+    b) 连接请求到达，派生一个进程来处理客户请求
+    c) 服务器进程终止，但是客户请求还没有被处理完。
+    d) 服务器进程重启，但是新的服务器进程无法绑定到相同的本地地址和端口，因为该地址和端口已经被前一个服务器进程占用。
+    e) 解决方案是设置SO_REUSEADDR选项。
+   ***所有TCP服务器，调用bind之前，都应该设置这个选项***
+   ***在编写一个可在同一时刻在同一主机上运行多次的多播应用时，设置SO_REUSEADDR选项是很有用的***
+
+*SO_REUSEPORT* 允许重用本地地址和端口
+  对于tcp,我们绝不可能绑定相同ip和相同port的2个套接字。
+
+*SO_KEEPALIVE* 保持连接 如果在2小时内任一方没有数据交换，就给对端发一个保持存活的探测分节。
+*SO_LINGER* 
+本选项是指定tcp协议 的，而不是udp; 关闭连接时的行为；
+本选项要求用户 进程 与内核之间 传递如下数据结构：
+``c
+struct linger{
+    int l_onoff;
+    int l_linger;
+};
+
+```
+    (1) 如果传递{0,0} 则关闭这个选项，close是默认行为。只是将数据从本地缓冲区发送出去。
+    (2) 如果传递{1,0} 则没有四步挥手的动作。然而，TIME_WAIT是我们的朋友，应该弄清楚它，而不是避免这个状态。
+    (3) 如果传递{1,非0} 则指定了一个延迟时间 ，这种情况下，close等它的数据和fin被服务器的tcp确认了再返回 。
+        - close成功返回 只是告诉我们先前发送的数据和fin已经由对端tcp确认。而不是告诉我们对端的应用进程是否已经读取数据。
+        如果不设置这个套接字选项，那我们连对端tcp是否确认了都不知道 。
+        - 让客户知道服务器已经读取数据的一个方法 是改为调用 shutdown 并设置第2个参数 为SHUT_WR而不是调用 close ,并等待对端close连接的当地端(服务器端);   
+        - 获取对端应用已经读取我们数据的另一个方法是应用级确认。简称应用ACK。
+```c
+char ack;
+write(sockfd,data,mbytes);
+n = read(sockfd,&ack,1);
+...
+nbytes = read(sockfd,buff,sizeof(buff));
+write(sockfd,"",1);
+```
+
+
+**SO_ERROR** 可以获取但不可以 设置 的选项
+
+
+流量控制 
+*SO_RCVBUF* 接收缓冲区大小 ;必须在connect之前设置 。
+*SO_SNDBUF* 发送缓冲区大小
+套接字缓冲区限定了通告对端的窗口大小 ，接收缓冲区就不可能溢出。
+
+**SO_RCVLOWAT** 接收低水位
+**SO_SNDLOWAT** 发送低水位  ，因为udp并不为发送数据保留副本，所以总是有数据就可以写，没有发送缓冲区。
+
+### 7.3 传输效率
+- 带宽延迟积
+  指网络带宽与往返延迟的乘积。表示一个数据从发送端到接收端，再返回发送端的往返时间内，网络能容纳的数据量。
+  例如，网络带宽是10Mbps,往返延迟是100ms，那么带宽延迟积就是10Mbps * 100ms = 1Mbps。
+- 长胖管道
+  指一个管道的容量。表示一个数据从发送端到接收端，再返回发送端的往返时间内，管道能容纳的数据量。由于延迟积大，数据从发送到接收到确认的时间 长，导致管道内存在大量的未确认状态，需要更多机制保证效率和可靠性。
+
+tcp套接字缓冲区大小必须为mss的整数4倍。
+管道的容量称为 带宽延迟积;
+
+### 7.4 fcntl函数
+fcntl 提供的网络特性:
+- 非阻塞io 
+    通过使用F_SETFL 命令设置O_NONBLOCK文件状态标志，可以将一个套接字设置为非阻塞模式。
+- 信号驱动io
+    通过使用F_SETFL 命令设置O_ANSYC文件状态标志，可以将一个套接字设置为信号驱动模式。
+- 属主
+    通过使用F_GETOWN 和F_SETOWN 命令，可以获取和设置一个套接字的属主。
+
+开启非阻塞io典型代码是
+```c
+ int flags;
+ //set a socket to nonblocking mode
+ if (( flags = fcntl(sockfd, F_GETFL, 0)) < 0)
+    err_sys("fcntl F_GETFL error");
+ flags |= O_NONBLOCK;
+ if (fcntl(sockfd, F_SETFL, flags) < 0)
+    err_sys("fcntl F_SETFL error");
+```
+
 
 ## 第八章 基本UDP
 

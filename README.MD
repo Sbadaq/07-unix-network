@@ -851,8 +851,176 @@ recvfrom(sockfd, recvline, sizeof(recvline), 0, (struct sockaddr *)&cliaddr, &cl
 udp 发送端淹没接收端是轻而易举之事。
 
 ## 第九章 基本sctp
+### 9.1 sctp协议概述
 
-## 第十章 sctp
+    多流特性：SCTP 允许在一个连接中存在多个独立的逻辑流，不同流之间的数据可以并行传输，且一个流中的数据丢失不会影响其他流的数据传输，提高了传输效率和可靠性。例如，在多媒体应用中，可以将音频和视频数据分别放在不同的流中传输。
+    多宿特性：一个 SCTP 端点可以绑定多个 IP 地址，当其中一个网络接口出现故障时，连接可以快速切换到其他可用的接口，增强了连接的健壮性和容错能力，适用于对网络可靠性要求较高的场景，如电信网络。
+    消息边界保留：SCTP 能够保留应用层消息的边界，发送的消息会完整地被接收，不会像 TCP 那样出现粘包问题，方便应用层处理数据。
+
+与 TCP、UDP 对比
+
+    与 TCP 相比，SCTP 提供了多流和多宿功能，而 TCP 是单流、单宿的；TCP 主要保证可靠的字节流传输，SCTP 在此基础上保留消息边界。
+    与 UDP 相比，UDP 是无连接、不可靠的，不保证消息的顺序和完整性，而 SCTP 是面向连接、可靠的，提供了可靠的数据传输机制。
+
+### 9.2 sctp套接字编程
+
+        1.使用socket函数创建 SCTP 套接字，协议族为AF_INET（IPv4）或AF_INET6（IPv6），套接字类型为SOCK_SEQPACKET，协议为IPPROTO_SCTP。 
+```c
+int sockfd = socket(AF_INET, SOCK_SEQPACKET, IPPROTO_SCTP);
+if (sockfd < 0) {
+    perror("socket creation failed");
+    return -1;
+}
+```
+    2. 绑定地址和端口
+        使用bind函数将 SCTP 套接字绑定到指定的地址和端口，示例：
+    地址结构 主要使用struct sockaddr_in（IPv4）或struct sockaddr_in6（IPv6）来存储对端地址信息，与 TCP 和 UDP 类似，需要设置地址族、端口号和 IP 地址等信息
+```c
+
+struct sockaddr_in servaddr;
+memset(&servaddr, 0, sizeof(servaddr));
+servaddr.sin_family = AF_INET;
+servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+servaddr.sin_port = htons(1234);
+if (bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
+    perror("bind failed");
+    close(sockfd);
+    return -1;
+}
+```
+    3.监听连接
+        使用listen函数将套接字设置为监听状态，准备接受客户端的连接请求，与 TCP 类似：
+```c
+
+if (listen(sockfd, 5) < 0) {
+    perror("listen failed");
+    close(sockfd);
+    return -1;
+}
+```
+    4.接受连接
+        使用sctp_accept（或accept，某些实现中）函数接受客户端的连接，返回一个新的套接字用于与客户端通信。
+```c
+
+int connfd = sctp_accept(sockfd, NULL, 0);
+if (connfd < 0) {
+    perror("accept failed");
+    close(sockfd);
+    return -1;
+}
+```
+    5.数据接收与发送
+        使用sctp_recvmsg函数接收数据，可以获取消息的各种信息，如流编号等；使用sctp_sendmsg函数发送数据，可以指定流编号等参数。
+```c
+
+// 接收数据
+struct sctp_sndrcvinfo sri;
+memset(&sri, 0, sizeof(sri));
+int n = sctp_recvmsg(connfd, buffer, sizeof(buffer), (struct sockaddr *)&cliaddr, &clilen, &sri, 0);
+if (n < 0) {
+    perror("sctp_recvmsg failed");
+    close(connfd);
+    return -1;
+}
+
+// 发送数据
+sri.sinfo_stream = 1;  // 指定流编号
+n = sctp_sendmsg(connfd, sendbuf, strlen(sendbuf), (struct sockaddr *)&cliaddr, clilen, 0, 0, sri.sinfo_stream, 0, 0);
+if (n < 0) {
+    perror("sctp_sendmsg failed");
+    close(connfd);
+    return -1;
+}
+```
+
+## 第十章 sctp 客户/服务器例子
+
+### 10.1 SCTP 服务端程序
+基本流程
+
+    套接字创建：使用socket函数创建 SCTP 套接字，指定协议族为AF_INET（IPv4）或AF_INET6（IPv6），套接字类型为SOCK_SEQPACKET，协议为IPPROTO_SCTP。
+    地址绑定：使用bind函数将套接字与特定的 IP 地址和端口绑定，使得服务器可以在该地址和端口上监听客户端连接。
+    监听连接：使用listen函数将套接字设置为监听状态，准备接受客户端的连接请求。
+    接受连接：使用accept函数接受客户端的连接，返回一个新的套接字用于与客户端进行通信。
+    数据处理：使用sctp_recvmsg函数接收客户端发送的数据，使用sctp_sendmsg函数向客户端发送响应数据。
+
+代码示例关键部分
+
+```c
+// 创建套接字
+sockfd = socket(AF_INET, SOCK_SEQPACKET, IPPROTO_SCTP);
+// 绑定地址
+bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+// 监听连接
+listen(sockfd, LISTENQ);
+// 接受连接
+connfd = accept(sockfd, (struct sockaddr *)&cliaddr, &clilen);
+// 接收数据
+n = sctp_recvmsg(connfd, buffer, BUFFER_SIZE, NULL, 0, &sri, &msg_flags);
+// 发送数据
+sctp_sendmsg(connfd, response, strlen(response), NULL, 0, 0, 0, sri.sinfo_stream, 0, 0);
+```
+注意事项
+
+    错误处理：在每个关键系统调用（如socket、bind、listen、accept等）后，都需要检查返回值，若出现错误应进行相应处理，如输出错误信息、关闭套接字等。
+    资源管理：在程序结束时，需要关闭所有打开的套接字，避免资源泄漏。
+
+### 10.2 SCTP 客户端程序
+基本流程
+
+    套接字创建：同样使用socket函数创建 SCTP 套接字。
+    连接服务器：使用sctp_connectx（或connect，某些实现中）函数连接到服务器，指定服务器的地址信息。
+    数据发送和接收：使用sctp_sendmsg函数向服务器发送数据，使用sctp_recvmsg函数接收服务器的响应数据。
+
+代码示例关键部分
+
+```c
+// 创建套接字
+sockfd = socket(AF_INET, SOCK_SEQPACKET, IPPROTO_SCTP);
+// 连接服务器
+sctp_connectx(sockfd, (struct sockaddr *)&servaddr, 1, NULL);
+// 发送数据
+sctp_sendmsg(sockfd, request, strlen(request), NULL, 0, 0, 0, 0, 0, 0);
+// 接收数据
+n = sctp_recvmsg(sockfd, buffer, BUFFER_SIZE, NULL, 0, &sri, &msg_flags);
+```
+注意事项
+
+    服务器地址配置：确保客户端配置的服务器地址和端口与服务器实际监听的地址和端口一致。
+    数据格式：客户端和服务器需要协商好数据的格式和协议，以便正确解析和处理数据。
+
+### 10.3 多流
+多流特性概述
+
+SCTP 的多流特性允许在一个 SCTP 连接中同时存在多个独立的逻辑流。不同流之间的数据可以并行传输，一个流中的数据丢失或延迟不会影响其他流的数据传输。
+多流的使用
+
+    流编号：在发送和接收数据时，可以通过sctp_sndrcvinfo结构体中的sinfo_stream成员指定流编号，从而将数据发送到特定的流中。
+    提高性能：对于需要同时传输多种类型数据的应用场景，如多媒体应用中的音频和视频流，可以将不同类型的数据分别放在不同的流中传输，提高传输效率。
+
+代码示例
+
+```c
+// 设置流编号
+sri.sinfo_stream = 1;
+// 发送数据到指定流
+sctp_sendmsg(sockfd, data, strlen(data), NULL, 0, 0, 0, sri.sinfo_stream, 0, 0);
+```
+### 10.4 探究头端阻塞
+头端阻塞概念
+
+头端阻塞（Head-of-Line Blocking）是指在一个流中，前面的数据包丢失或延迟会导致后续数据包的处理被阻塞，即使其他流中的数据可以正常传输。
+SCTP 中的头端阻塞
+
+虽然 SCTP 的多流特性可以在一定程度上缓解头端阻塞问题，但在某些情况下，头端阻塞仍然可能发生。例如，当一个流中的数据包丢失，接收方需要等待该数据包重传，这可能会影响该流后续数据包的处理。
+解决方法
+
+    调整流的优先级：可以通过设置不同流的优先级，让重要的流优先处理，减少头端阻塞对关键数据的影响。
+    合理规划流的使用：根据应用的需求，合理分配数据到不同的流中，避免某个流出现长时间的阻塞。
+
+
+通过本章的学习，可以深入了解 SCTP 在客户 / 服务器编程中的应用，掌握 SCTP 的多流特性以及如何处理头端阻塞问题，为开发高效、可靠的网络应用提供基础。
+
 
 ## 第十一 名字与地址
 

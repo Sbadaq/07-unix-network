@@ -743,7 +743,8 @@ int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t
 #### *SO_LINGER* 
 本选项是指定tcp协议 的，而不是udp; 关闭连接时的行为；
 本选项要求用户 进程 与内核之间 传递如下数据结构：
-``c
+
+```c
 struct linger{
     int l_onoff;
     int l_linger;

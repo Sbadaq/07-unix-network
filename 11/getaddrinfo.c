@@ -11,7 +11,7 @@ int main() {
     hints.ai_family = AF_UNSPEC; // IPv4 或 IPv6
     hints.ai_socktype = SOCK_STREAM; // TCP 套接字
 
-    status = getaddrinfo("www.example.com", "http", &hints, &res);
+    status = getaddrinfo("www.deepseek.com", "http", &hints, &res);
     if (status != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         return 1;

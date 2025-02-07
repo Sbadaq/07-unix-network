@@ -1324,7 +1324,35 @@ void daemonize(const char *path) {
 
 ### 六、daemon_inetd
 
-## 第十四 高级 io
+## 第十四 高级IO函数 
+### 1. 套接字超时
+
+    核心问题：在网络编程中，I/O操作可能会阻塞，需要设置超时机制以避免无限等待。
+    设置超时的方法：
+
+        alarm 信号：使用 alarm 函数设置定时器，超时后触发 SIGALRM 信号。
+
+        select：使用 select 函数设置超时时间，监控套接字的可读性或可写性。
+
+        setsockopt：通过 SO_RCVTIMEO 和 SO_SNDTIMEO 选项设置套接字的接收和发送超时。
+
+    注意事项：
+
+        alarm 可能会干扰其他信号处理逻辑。
+
+        select 适用于多路复用场景，但效率较低。
+
+        setsockopt 是最直接的方法，但并非所有系统都支持
+
+- recv和send函数 
+- readv 和sendv函数
+- recvmsg 和sendmsg函数 
+- 辅助数据
+- 排队的数据量
+- 套接字和标准IO
+- 高级轮询技术
+- 事务目的TCP——T/TCP
+ 
 
 ## 第十五 域协议 
 

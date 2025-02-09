@@ -1322,8 +1322,50 @@ void daemonize(const char *path) {
 1. **功能与特点**：`inetd` 作为 Internet 超级服务器，监听多个网络服务端口。它的主要特点是资源优化，通过统一监听并按需启动实际服务进程，减少了系统中常驻进程的数量，提高了系统资源利用率。
 2. **工作流程**：`inetd` 启动后，读取配置文件（如 `/etc/inetd.conf`），根据配置监听相应端口。当有客户端连接请求到达时，`inetd` 根据请求的端口号找到对应的服务程序，使用 `exec` 系列函数启动该服务程序，并将客户端的连接套接字传递给新启动的服务程序，由其负责与客户端进行通信。
 
-### 六、daemon_inetd
+### 六、如何在系统启动时能启动一个用户 定义 的程序？
+1. **systemd** 
+    在/etc/systemd/system/下面建一个新的用户 服务 文件 。
+    例如 /etc/systemd/system/clash.service
+    Type=forking：表明服务以分叉（fork）的方式启动，适合使用 nohup 和 & 启动的程序。
+```ini
+[Unit]
+Description=Clash Daemon Service
+After=network.target
 
+[Service]
+Type=forking 
+ExecStart=/home/expert/clash/start.sh
+ExecStop=/bin/kill -s SIGTERM $MAINPID
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+sudo systemctl daemon-reload
+sudo systemctl enable clash.service
+2. **/etc/rc.local（传统方法）**
+
+    在 /etc/rc.local 文件中添加启动脚本。
+3. **使用 crontab 的 @reboot**
+
+    在用户的 crontab 文件中添加一行，指定在系统启动时运行脚本。
+    例如：
+    ```bash
+    @reboot /path/to/your/script
+    ```
+4. **.desktop**
+    ~/.config/autostart/ 目录下创建一个 .desktop 文件
+    ```ini
+    [Desktop Entry]
+    Type=Application
+    Exec=/path/to/your/program
+    Hidden=false
+    NoDisplay=false
+    X-GNOME-Autostart-enabled=true
+    Name=My Custom Program
+    Comment=Start My Custom Program at login
+    ```
 ## 第十四 高级IO函数 
 ### 1. 套接字超时
 

@@ -53,7 +53,7 @@ int main()
             perror("recvmsg");
             exit(1);
         }
-       // buffer[recvBytes] = '\0';
+        buffer[recvBytes] = '\0';
         printf("received %d bytes from %s:%d: %s\n",recvBytes,inet_ntoa(clientAddr.sin_addr),ntohs(clientAddr.sin_port),buffer);
     }
     return 0;

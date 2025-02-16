@@ -13,7 +13,9 @@ static void connect_alarm(int signo)
     printf("alarm : timeout\n");
     exit(EXIT_FAILURE);
 }
-
+/**alarm 函数
+原理：通过调用 alarm 函数设定一个定时器，当定时器到期时，内核会向进程发送 SIGALRM 信号。在网络编程中，可利用此信号来中断正在进行的 I/O 操作，实现超时控制。
+ */
 int set_timeout_with_alarm(int sockfd)
 {
     signal(SIGALRM,connect_alarm);    

@@ -1456,6 +1456,91 @@ pselect 和 ppoll
 功能：将一个文件描述符的数据同时复制到两个文件描述符，常用于日志记录和数据备份等场景。
 
 ## 第十五 域协议 
+### 15.1 域套接字概述
+1.特点
+- **高性能：**
+- **本地通信:**
+- **与套接字接口相似:**
+2.应用场景 
+- **本地进程通信**
+- **替代管道和消息队列**
+
+域协议 并不是一个完整的协议族，而是在单个主机上执行客户服务器通信 的一种方法，但所用的api是套接字api.
+unix 域协议提供 两类套接字：
+- 流套接字：提供有序、可靠、双向字节流服务的套接字。
+- 数据报套接字：提供数据报服务的套接字。
+
+### 15.2 域套接字地址结构
+- **sockaddr_un**：
+    - 功能：用于本地域套接字地址的结构体。
+    - 成员：
+        - sun_family：地址族，固定为 AF_UNIX。
+        - sun_path：套接字文件路径，以 null 结尾的字符串。
+- **bind**：
+    - 功能：将套接字与本地域套接字地址绑定。
+    - 参数：
+        - sockfd：套接字描述符。
+        - addr：指向 sockaddr_un 结构体的指针。路径名也是有要求的，必须是存在 的路径 ，不能是文件 。不能超过UNIX_PATH_MAX
+        - addrlen：sockaddr_un 结构体的长度。
+    - 返回值：成功返回 0，失败返回 -1。
+- **socketpair**：
+    - 功能：创建一对[未命名]的本地域套接字。
+    - 参数：
+        - domain：地址族，固定为 AF_UNIX。
+        - type：套接字类型，SOCK_STREAM 或 SOCK_DGRAM。
+        - protocol：协议，通常为 0。
+        - sockfd[2]:新创建 的2个套接字作为sockfd返回 
+
+### 15.3 字节流套接字
+1.创建套接字
+```c
+#include <sys/socket.h>
+
+int sockfd = socket(AF_UNIX, SOCK_STREAM, 0); // 字节流套接字
+int sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);  // 数据报套接字
+```
+2.绑定套接字
+```c
+#include <sys/socket.h>
+#include <sys/un.h>
+struct sockaddr_un addr;
+addr.sun_family = AF_UNIX;
+strcpy(addr.sun_path, "/tmp/mysocket");
+int bind_result = bind(sockfd, (struct sockaddr*)&addr, sizeof(addr));
+```
+3.连接套接字
+```c
+#include <sys/socket.h>
+#include <sys/un.h>
+struct sockaddr_un addr;
+addr.sun_family = AF_UNIX;
+strcpy(addr.sun_path, "/tmp/mysocket");
+int connect_result = connect(sockfd, (struct sockaddr*)&addr, sizeof(addr));
+```
+4.监听套接字
+```c
+#include <sys/socket.h>
+int listen_result = listen(sockfd, 5);
+```
+5.接受连接
+```c
+#include <sys/socket.h>
+int client_sockfd = accept(sockfd, NULL, NULL);
+```
+6.发送和接收数据
+```c
+#include <sys/socket.h>
+send(sockfd, "Hello", 5, 0);
+recv(sockfd, buffer, sizeof(buffer), 0);
+```
+7.关闭套接字
+```c
+#include <unistd.h>
+close(sockfd);
+```
+### 15.4 unix数据报套接字
+1.特点：无连接 ，不可靠，有最大长度 限制
+
 
 ## 第十六 非阻塞 io
 

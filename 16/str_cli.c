@@ -106,19 +106,25 @@ void str_cli(FILE *fp, int sockfd)
                 FD_SET(STDOUT_FILENO,&wset);
             }
         }
-
-        if(FD_ISSET(STDOUT_FILENO,&wset) && ( (n = fromiptr - fromoptr) > 0)){
-            if((nwritten = write(STDOUT_FILENO,fromoptr,n)) < 0){
+        /* if output is available and data > 0 */
+        if(FD_ISSET(STDOUT_FILENO,&wset) && ( (n = toiptr - tooptr) > 0)){
+            if((nwritten = write(STDOUT_FILENO,tooptr,n)) < 0){
+                /* here is possibble */
                 if(errno == EWOULDBLOCK)
                     continue;
                 else
                     err_sys("write error");
-            }
-            else{
+            }else{
+                /* write success , fromoptr add,*/
                 fprintf(stderr,"%s : write %d bytes to stdout \n",gf_time(),nwritten);
                 fromoptr += nwritten;
-                if(fromoptr == fromiptr)
+                /* if  back to begin of the buff*/
+                if(fromoptr == fromiptr){
                     fromoptr = fromiptr = from;
+                    if(stdineof)
+                        shutdown(sockfd,SHUT_WR);
+                }
+                    
             }
         }
         if(FD_ISSET(sockfd,&wset) && ( (n = toiptr - tooptr) > 0)){

@@ -12,7 +12,7 @@
  * @brief 实现一个字符串客户端功能，向服务器发送字符串并接收服务器的响应
  * 
  * @param fp 文件指针，通常用于标准输入（stdin）
- * @param sockfd 套接字描述符，用于与服务器通信
+ * @param sockfd 套接字描述符，用于与服务 器通信
  */
 void str_cli(FILE *fp, int sockfd)
 {

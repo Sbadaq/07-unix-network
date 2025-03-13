@@ -1543,11 +1543,21 @@ close(sockfd);
 
 
 ## 第十六 非阻塞 io
+
+### 16.1 套接字默认是阻塞的
 套接字的默认状态是阻塞的，这就意味着发出一个不能立即完成 的套接字调用时，其进程将被投入睡眠，等待相应操作完成 。可能阻塞的套接字调用分为四类：
-- 输入操作：包括 recv、recvfrom 和 recvmsg。如果输入操作不能被满足，套接字返回 一个EWOULDBLOCK 错误。
-- 输出操作：包括 send、sendto 和 sendmsg。
-- 连接操作：包括 connect 和 accept。
-- 等待操作：包括 select 和 poll。
+- 1. 输入操作：包括 read、readv、recv、recvfrom 和 recvmsg。接收缓冲没有数据则进程进入休眠。
+对于非阻塞的来说，如果输入操作不能被满足，套接字返回 一个EWOULDBLOCK 错误。
+- 2. 输出操作：包括 write、writev、send、sendto 和 sendmsg。发送缓冲区没有空间，进程进入休眠。
+对于非阻塞的来说，如果发送没有空间，套接字返回EWOULDBLOCK错误。
+- 3. 接受连接操作： accept。对于一个阻塞的套接字调用accept，新的连接到来之前处于休眠。
+对于非阻塞的来说，如果新的连接尚未到达 ，立即返回一个EWOULDBLOCK
+- 4. 发出连接，即connect；由于TCP的三次握手，connect一直等到客户收到自己的SYN的ACK才返回。这意味着connect至少阻塞进度一个RTT时间。
+对于非阻塞的来说，调用connect并且连接不能建立，三次握手照样发起。不过会返回一个EINPROGRESS错误。
+对于不能满足的非阻塞IO操作，返回EAGAIN错误。
+等待操作：包括 select 和 poll。
+
+### 16.2 非阻塞读和写
 非阻塞套接字调用：
 - 对于输入操作，当套接字接收缓冲区中没有数据时，recv 调用将返回 0，而不是阻塞进程。
 - 对于输出操作，当套接字发送缓冲区已满时，send 调用将返回 -1，而不是阻塞进程。
@@ -1562,8 +1572,136 @@ close(sockfd);
 - 对于非阻塞套接字的使用，需要在套接字创建后立即设置为非阻塞模式。
 - 对于非阻塞套接字的使用，需要在套接字创建后立即设置为非阻塞模式。
 
+《unix网络编程卷1：套接字api》第3版第16章说道：当有一个已经完成的连接准备好被accept时，select作为可读描述符返回该连接的监听套接字。因此，如果我们使用select 作为某个监听套接字上等待一个外来连接，那就没有必要把该监听套接字设置为非阻塞。这是因为如果select告诉我们该套接字已经有连接就绪，那么随后 的accept调用就不应该阻塞。 
+- select 作用： select 监听套接字，在完成队列 不为空时将其标记为可读，并返回。
+- accept 作用： 当select告诉监听可读时，accept一定会返回一个新的连接套接字（而不会阻塞）。
+
+但这里存在一个时间陷阱问题，如果select告诉我们有一个连接就绪，但是accept调用之前可能队列中的连接被TCP驱逐出队或者被其它线程接受，accept调用会阻塞，那么select会一直阻塞，直到accept返回。
+
+(1) 解决办法是将监听套接字设置为非阻塞，这样select就不会阻塞，accept调用也不会阻塞。如果 accept 返回 EWOULDBLOCK 或 EAGAIN，我们可以简单地忽略这个错误，并继续调用 select 等待新的连接。
+(2)  使用边缘触发（Edge-Triggered）模式.在边缘触发模式下，epoll 只会在状态发生变化时通知你一次。因此，你必须在一次通知中处理所有已完成的连接，直到 accept 返回 EWOULDBLOCK 或 EAGAIN。
+(3) 使用线程池或多进程 在多线程或多进程服务器中，可以让多个线程或进程同时调用 accept。操作系统会确保每个连接只被一个线程或进程接受。
 
 ## 第十七 ioctl
+《unix网络编程卷1：套接字api》第3版第17章主要介绍 ioctl函数 ，请帮我总结这一章的复习大纲，供我复习掌握知识。重要的知识点或者难以理解的地方可以提供代码示例。
+
+### 1. ioctl 函数概述
+作用：ioctl 是一个通用的设备控制函数，用于对设备或文件描述符进行控制操作。
+
+原型：
+
+```c
+ 
+#include <sys/ioctl.h>
+int ioctl(int fd, unsigned long request, ...);
+fd：文件描述符（通常是套接字或设备文件）。
+
+request：控制请求代码，指定要执行的操作。
+
+...：可选参数，通常是一个指向数据结构的指针。
+```
+
+### 2. ioctl 的常见用途
+
++ 网络接口控制：
+
+获取或设置网络接口的配置信息（如 IP 地址、子网掩码、MAC 地址等）。
+
+示例：SIOCGIFADDR（获取 IP 地址）、SIOCSIFADDR（设置 IP 地址）。
+
++ ARP 缓存操作：
+
+添加、删除或查询 ARP 缓存条目。
+
+示例：SIOCSARP（添加 ARP 条目）、SIOCDARP（删除 ARP 条目）。
+
++ 路由表操作：
+
+查询或修改路由表。
+
+示例：SIOCADDRT（添加路由）、SIOCDELRT（删除路由）。
+
++ 套接字选项：
+
+获取或设置套接字选项。
+
+示例：FIONBIO（设置非阻塞模式）。
+
+### 3. 重要数据结构
+struct ifreq：
+
+用于网络接口的配置和控制。
+
+示例：
+
+```c
+Copy
+struct ifreq {
+    char ifr_name[IFNAMSIZ]; // 接口名称
+    union {
+        struct sockaddr ifr_addr;    // IP 地址
+        struct sockaddr ifr_netmask; // 子网掩码
+        struct sockaddr ifr_hwaddr;  // 硬件地址
+        // 其他字段
+    };
+};
+struct arpreq：
+```
+用于 ARP 缓存操作。
+
+示例：
+
+```c
+Copy
+struct arpreq {
+    struct sockaddr arp_pa; // 协议地址（IP 地址）
+    struct sockaddr arp_ha; // 硬件地址（MAC 地址）
+    int arp_flags;          // 标志（如 ATF_PERM）
+};
+```
+### 4. 常见 ioctl 请求
+- 网络接口相关：
+
+SIOCGIFCONF：获取接口配置列表。
+SIOCGIFADDR：获取接口的 IP 地址。
+SIOCSIFADDR：设置接口的 IP 地址。
+SIOCGIFHWADDR：获取接口的硬件地址（MAC 地址）。
+
+- ARP 相关：
+
+SIOCSARP：添加 ARP 缓存条目。
+
+SIOCDARP：删除 ARP 缓存条目。
+
+SIOCGARP：查询 ARP 缓存条目。
+
+- 路由相关：
+
+SIOCADDRT：添加路由条目。
+
+SIOCDELRT：删除路由条目。
+
+- 套接字相关：
+
+FIONBIO：设置非阻塞模式。
+
+6. 难点与注意事项
+权限问题：ioctl 的许多操作需要 root 权限。
+
+错误处理：ioctl 的返回值需要仔细检查，错误时设置 errno。
+
+数据结构：struct ifreq 和 struct arpreq 的字段需要正确设置。
+
+平台差异：不同操作系统对 ioctl 的支持可能有所不同。
+
+7. 复习建议
+理解 ioctl 的作用和常见用途。
+
+掌握重要数据结构（如 ifreq 和 arpreq）。
+
+熟悉常见 ioctl 请求（如 SIOCGIFADDR、SIOCSARP）。
+
+通过代码示例加深理解，并尝试修改和扩展示例代码
 
 ## 第十八 路由套接字
 

@@ -1685,26 +1685,242 @@ SIOCDELRT：删除路由条目。
 
 FIONBIO：设置非阻塞模式。
 
-6. 难点与注意事项
-权限问题：ioctl 的许多操作需要 root 权限。
-
-错误处理：ioctl 的返回值需要仔细检查，错误时设置 errno。
-
-数据结构：struct ifreq 和 struct arpreq 的字段需要正确设置。
+### 5. 难点与注意事项
+> 权限问题：ioctl 的许多操作需要 root 权限。
+> 错误处理：ioctl 的返回值需要仔细检查，错误时设置 errno。
+> 数据结构：struct ifreq 和 struct arpreq 的字段需要正确设置。
 
 平台差异：不同操作系统对 ioctl 的支持可能有所不同。
-
-7. 复习建议
 理解 ioctl 的作用和常见用途。
-
 掌握重要数据结构（如 ifreq 和 arpreq）。
-
 熟悉常见 ioctl 请求（如 SIOCGIFADDR、SIOCSARP）。
-
 通过代码示例加深理解，并尝试修改和扩展示例代码
 
 ## 第十八 路由套接字
+《unix网络编程卷1：套接字api》第3版第18章主要介绍 路由套接字 ，请帮我总结这一章的复习大纲，供我复习掌握知识。重要的知识点或者难以理解的地方可以提供代码示例。
+《UNIX 网络编程卷 1：套接字 API》第 3 版第 18 章主要介绍了 **路由套接字**（Routing Socket），这是 UNIX 系统中用于操作路由表的一种高级机制。以下是本章的复习大纲，包括重要知识点和代码示例，帮助你更好地掌握内容。
 
+---
+
+## 第 18 章复习大纲
+
+### 1. **路由套接字概述**
+   - **作用**：路由套接字允许用户空间程序与内核路由子系统交互，用于查询、添加、删除或修改路由表。
+   - **特点**：
+     - 提供了一种灵活的方式来操作路由表。
+     - 支持 IPv4 和 IPv6。
+     - 使用 `PF_ROUTE` 协议族。
+
+---
+
+### 2. **路由套接字的基本用法**
+   - **创建路由套接字**：
+     ```c
+     int fd = socket(PF_ROUTE, SOCK_RAW, AF_UNSPEC);
+     ```
+     - `PF_ROUTE`：指定协议族为路由套接字。
+     - `SOCK_RAW`：指定套接字类型为原始套接字。
+     - `AF_UNSPEC`：指定地址族为未指定（支持 IPv4 和 IPv6）。
+
+   - **发送和接收路由消息**：
+     - 使用 `write` 发送路由消息。
+     - 使用 `read` 接收路由消息。
+
+---
+
+### 3. **路由消息结构**
+   - **`struct rt_msghdr`**：
+     - 路由消息的头部结构，包含消息类型、长度、版本等信息。
+     - 示例：
+       ```c
+       struct rt_msghdr {
+           u_short rtm_msglen;  // 消息长度
+           u_char  rtm_version; // 协议版本
+           u_char  rtm_type;    // 消息类型
+           u_short rtm_index;   // 接口索引
+           int     rtm_flags;   // 标志
+           int     rtm_addrs;   // 地址掩码
+           pid_t   rtm_pid;     // 进程 ID
+           int     rtm_seq;     // 序列号
+           int     rtm_errno;   // 错误代码
+           int     rtm_use;     // 使用计数
+           u_long  rtm_inits;   // 初始化状态
+           struct rt_metrics rtm_rmx; // 路由度量
+       };
+       ```
+
+   - **地址掩码（`rtm_addrs`）**：
+     - 用于指定消息中包含的地址类型（如目的地址、网关地址、网络掩码等）。
+     - 示例：
+       ```c
+       #define RTA_DST     0x01  // 目的地址
+       #define RTA_GATEWAY 0x02  // 网关地址
+       #define RTA_NETMASK 0x04  // 网络掩码
+       ```
+
+---
+
+### 4. **常见路由消息类型**
+   - **`RTM_ADD`**：添加路由条目。
+   - **`RTM_DELETE`**：删除路由条目。
+   - **`RTM_GET`**：查询路由条目。
+   - **`RTM_CHANGE`**：修改路由条目。
+   - **`RTM_REDIRECT`**：重定向路由。
+   - **`RTM_MISS`**：路由查找失败。
+
+---
+
+### 5. **代码示例**
+
+#### **(1) 查询路由表**
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <net/route.h>
+#include <net/if.h>
+#include <arpa/inet.h>
+
+void query_routing_table() {
+    int fd;
+    char buf[1024];
+    struct rt_msghdr *rtm;
+    struct sockaddr_in *sin;
+
+    // 创建路由套接字
+    fd = socket(PF_ROUTE, SOCK_RAW, AF_UNSPEC);
+    if (fd < 0) {
+        perror("socket");
+        exit(1);
+    }
+
+    // 构造路由查询消息
+    memset(buf, 0, sizeof(buf));
+    rtm = (struct rt_msghdr *)buf;
+    rtm->rtm_msglen = sizeof(struct rt_msghdr);
+    rtm->rtm_version = RTM_VERSION;
+    rtm->rtm_type = RTM_GET;
+    rtm->rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
+    rtm->rtm_pid = getpid();
+    rtm->rtm_seq = 1;
+
+    // 发送路由查询消息
+    if (write(fd, buf, rtm->rtm_msglen) < 0) {
+        perror("write");
+        close(fd);
+        exit(1);
+    }
+
+    // 接收路由查询结果
+    while (1) {
+        ssize_t n = read(fd, buf, sizeof(buf));
+        if (n < 0) {
+            perror("read");
+            break;
+        }
+
+        rtm = (struct rt_msghdr *)buf;
+        if (rtm->rtm_type == RTM_GET) {
+            sin = (struct sockaddr_in *)(rtm + 1);
+            char dst[INET_ADDRSTRLEN], gateway[INET_ADDRSTRLEN], netmask[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &sin->sin_addr, dst, sizeof(dst));
+            inet_ntop(AF_INET, &(sin + 1)->sin_addr, gateway, sizeof(gateway));
+            inet_ntop(AF_INET, &(sin + 2)->sin_addr, netmask, sizeof(netmask));
+            printf("Destination: %s, Gateway: %s, Netmask: %s\n", dst, gateway, netmask);
+        }
+    }
+
+    close(fd);
+}
+
+int main() {
+    query_routing_table();
+    return 0;
+}
+```
+
+#### **(2) 添加路由条目**
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <net/route.h>
+#include <net/if.h>
+#include <arpa/inet.h>
+
+void add_route(const char *dst, const char *gateway, const char *netmask) {
+    int fd;
+    char buf[1024];
+    struct rt_msghdr *rtm;
+    struct sockaddr_in *sin;
+
+    // 创建路由套接字
+    fd = socket(PF_ROUTE, SOCK_RAW, AF_UNSPEC);
+    if (fd < 0) {
+        perror("socket");
+        exit(1);
+    }
+
+    // 构造路由添加消息
+    memset(buf, 0, sizeof(buf));
+    rtm = (struct rt_msghdr *)buf;
+    rtm->rtm_msglen = sizeof(struct rt_msghdr) + 3 * sizeof(struct sockaddr_in);
+    rtm->rtm_version = RTM_VERSION;
+    rtm->rtm_type = RTM_ADD;
+    rtm->rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
+    rtm->rtm_pid = getpid();
+    rtm->rtm_seq = 1;
+
+    sin = (struct sockaddr_in *)(rtm + 1);
+    sin->sin_family = AF_INET;
+    inet_pton(AF_INET, dst, &sin->sin_addr);
+
+    (sin + 1)->sin_family = AF_INET;
+    inet_pton(AF_INET, gateway, &(sin + 1)->sin_addr);
+
+    (sin + 2)->sin_family = AF_INET;
+    inet_pton(AF_INET, netmask, &(sin + 2)->sin_addr);
+
+    // 发送路由添加消息
+    if (write(fd, buf, rtm->rtm_msglen) < 0) {
+        perror("write");
+        close(fd);
+        exit(1);
+    }
+
+    printf("Route added: Destination=%s, Gateway=%s, Netmask=%s\n", dst, gateway, netmask);
+    close(fd);
+}
+
+int main() {
+    add_route("192.168.1.0", "192.168.1.1", "255.255.255.0");
+    return 0;
+}
+```
+
+---
+
+### 6. **难点与注意事项**
+   - **权限问题**：操作路由表需要 root 权限。
+   - **消息构造**：路由消息的构造需要仔细设置各个字段。
+   - **错误处理**：`write` 和 `read` 的返回值需要检查，错误时设置 `errno`。
+   - **平台差异**：不同操作系统对路由套接字的支持可能有所不同。
+
+---
+
+### 7. **复习建议**
+   - **理解路由套接字的作用和基本用法**。
+   - **掌握路由消息结构**（如 `rt_msghdr` 和 `sockaddr_in`）。
+   - **熟悉常见路由消息类型**（如 `RTM_ADD`、`RTM_GET`）。
+   - **通过代码示例加深理解**，并尝试修改和扩展示例代码。
+
+---
+
+通过这个复习大纲，你可以系统地掌握第 18 章的内容。如果有进一步的问题，欢迎随时提问！
 ## 第十九 密钥管理 
 
 ## 第二十 广播

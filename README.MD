@@ -2449,110 +2449,160 @@ int main() {
 
 ---
 
-### 9. **代码示例：UDP 服务器与客户端**
-以下是一个简单的 UDP 服务器与客户端示例：
-
-#### 服务器端代码：
-```c
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-
-int main() {
-    int sockfd;
-    struct sockaddr_in server_addr, client_addr;
-    char buffer[1024];
-
-    // 创建 UDP 套接字
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0) {
-        perror("socket");
-        exit(1);
-    }
-
-    // 绑定到本地地址
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(12345);
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("bind");
-        close(sockfd);
-        exit(1);
-    }
-
-    // 接收数据
-    socklen_t addr_len = sizeof(client_addr);
-    ssize_t len = recvfrom(sockfd, buffer, sizeof(buffer), 0,
-                           (struct sockaddr *)&client_addr, &addr_len);
-    if (len < 0) {
-        perror("recvfrom");
-    } else {
-        buffer[len] = '\0';
-        printf("Received: %s\n", buffer);
-    }
-
-    close(sockfd);
-    return 0;
-}
-```
-
-#### 客户端代码：
-```c
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-
-int main() {
-    int sockfd;
-    struct sockaddr_in server_addr;
-    const char *message = "Hello, UDP!";
-
-    // 创建 UDP 套接字
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0) {
-        perror("socket");
-        exit(1);
-    }
-
-    // 设置服务器地址
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(12345);
-    inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr);
-
-    // 发送数据
-    if (sendto(sockfd, message, strlen(message), 0,
-               (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("sendto");
-        close(sockfd);
-        exit(1);
-    }
-
-    printf("Message sent: %s\n", message);
-    close(sockfd);
-    return 0;
-}
-```
-
----
-
-### 10. **总结**
+### 9.  **总结**
    - 高级 UDP 编程涉及套接字选项、数据报截断、连接、广播、多播等技术。
    - 通过合理使用这些技术，可以优化 UDP 的性能和可靠性。
    - UDP 适合对实时性要求高的应用，但需要开发者自行处理可靠性和错误恢复。
 
 ---
+ 
+## 第二三 高级 sctp
+ 
+---
+ 
+### 1. **SCTP 的基本特性**
+   - **多流（Multi-streaming）**：
+     - SCTP 支持在一个连接中同时传输多个独立的数据流，避免了 TCP 的队头阻塞问题。
+   - **多宿主（Multi-homing）**：
+     - SCTP 支持多个网络接口，提高了连接的可靠性和容错能力。
+   - **消息边界（Message-oriented）**：
+     - SCTP 保留了消息边界，适合传输离散的消息（如 UDP）。
+   - **可靠性**：
+     - SCTP 提供了类似 TCP 的可靠性保证，包括数据确认、重传和拥塞控制。
+
+---
+
+### 2. **SCTP 的套接字 API**
+   - **创建 SCTP 套接字**：
+     - 使用 `socket` 函数创建 SCTP 套接字。
+     - 示例：
+       ```c
+       int sockfd = socket(AF_INET, SOCK_SEQPACKET, IPPROTO_SCTP);
+       if (sockfd < 0) {
+           perror("socket");
+           exit(1);
+       }
+       ```
+
+---
+
+### 3. **SCTP 的连接管理**
+   - **建立连接**：
+     - 使用 `sctp_bindx` 绑定多个地址。
+     - 使用 `sctp_connectx` 建立连接。
+     - 示例：
+       ```c
+       struct sockaddr_in addr1, addr2;
+       memset(&addr1, 0, sizeof(addr1));
+       addr1.sin_family = AF_INET;
+       addr1.sin_port = htons(12345);
+       inet_pton(AF_INET, "192.168.1.100", &addr1.sin_addr);
+
+       memset(&addr2, 0, sizeof(addr2));
+       addr2.sin_family = AF_INET;
+       addr2.sin_port = htons(12345);
+       inet_pton(AF_INET, "192.168.1.101", &addr2.sin_addr);
+
+       struct sockaddr *addrs[] = { (struct sockaddr *)&addr1, (struct sockaddr *)&addr2 };
+       sctp_connectx(sockfd, addrs, 2, NULL);
+       ```
+
+---
+
+### 4. **SCTP 的消息传输**
+   - **发送消息**：
+     - 使用 `sctp_sendmsg` 发送消息。
+     - 示例：
+       ```c
+       const char *message = "Hello, SCTP!";
+       sctp_sendmsg(sockfd, message, strlen(message), NULL, 0, 0, 0, 0, 0, 0);
+       ```
+   - **接收消息**：
+     - 使用 `sctp_recvmsg` 接收消息。
+     - 示例：
+       ```c
+       char buffer[1024];
+       struct sockaddr_in sender_addr;
+       socklen_t addr_len = sizeof(sender_addr);
+       struct sctp_sndrcvinfo sndrcvinfo;
+       int flags = 0;
+
+       ssize_t len = sctp_recvmsg(sockfd, buffer, sizeof(buffer), (struct sockaddr *)&sender_addr, &addr_len, &sndrcvinfo, &flags);
+       if (len < 0) {
+           perror("sctp_recvmsg");
+       } else {
+           buffer[len] = '\0';
+           printf("Received: %s\n", buffer);
+       }
+       ```
+
+---
+
+### 5. **SCTP 的多流特性**
+   - **设置流数量**：
+     - 使用 `sctp_getpaddrs` 和 `sctp_freepaddrs` 获取和释放地址列表。
+   - **选择流**：
+     - 使用 `sctp_sendmsg` 的 `stream` 参数选择发送消息的流。
+     - 示例：
+       ```c
+       sctp_sendmsg(sockfd, message, strlen(message), NULL, 0, 0, 0, 1, 0, 0);  // 使用流 1
+       ```
+
+---
+
+### 6. **SCTP 的多宿主特性**
+   - **绑定多个地址**：
+     - 使用 `sctp_bindx` 绑定多个地址。
+     - 示例：
+       ```c
+       struct sockaddr_in addr1, addr2;
+       memset(&addr1, 0, sizeof(addr1));
+       addr1.sin_family = AF_INET;
+       addr1.sin_port = htons(12345);
+       inet_pton(AF_INET, "192.168.1.100", &addr1.sin_addr);
+
+       memset(&addr2, 0, sizeof(addr2));
+       addr2.sin_family = AF_INET;
+       addr2.sin_port = htons(12345);
+       inet_pton(AF_INET, "192.168.1.101", &addr2.sin_addr);
+
+       struct sockaddr *addrs[] = { (struct sockaddr *)&addr1, (struct sockaddr *)&addr2 };
+       sctp_bindx(sockfd, addrs, 2, SCTP_BINDX_ADD_ADDR);
+       ```
+
+---
+
+### 7. **SCTP 的事件通知**
+   - **启用事件通知**：
+     - 使用 `sctp_event_subscribe` 结构启用事件通知。
+     - 示例：
+       ```c
+       struct sctp_event_subscribe events;
+       memset(&events, 0, sizeof(events));
+       events.sctp_data_io_event = 1;
+       setsockopt(sockfd, IPPROTO_SCTP, SCTP_EVENTS, &events, sizeof(events));
+       ```
+
+---
+
+### 8. **SCTP 的应用场景**
+   - **VoIP**：
+     - SCTP 的多流特性适合传输语音和数据。
+   - **实时通信**：
+     - SCTP 的可靠性和消息边界适合实时通信。
+   - **多宿主网络**：
+     - SCTP 的多宿主特性提高了网络的可靠性和容错能力。
+
+---
+
+### 9. **总结**
+   - SCTP 是一种强大的传输层协议，适合对可靠性和实时性要求较高的应用。
+   - 通过多流、多宿主和消息边界等特性，SCTP 提供了比 TCP 和 UDP 更灵活的功能。
+   - 掌握 SCTP 的套接字 API 和高级特性，可以帮助你构建更高效的网络应用。
+
+---
 
 希望这个归纳总结能帮助你更好地掌握第 20 章的内容！如果还有其他问题，欢迎随时提问！ 😊
-## 第二三 高级 sctp
-《Unix 网络编程卷 1：套接字 API》第 3 版第 20章主要介绍了 **高级 sctp**， 如果这一章是很实用的，请帮我知知识归纳帮助 我更好地掌握内容。
-
 ## 二十四 带外
 
 ## 二十五 信号驱动

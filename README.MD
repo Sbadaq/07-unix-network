@@ -2618,9 +2618,58 @@ sigio
 开启套接字的信号驱动 IO，使用 `fcntl` 的 `F_SETOWN` 选项。
 
 ## 二十六 线程
+### 1. 为什么 要引入 线程
+在传统的unix模型 中，当一个进程 需要 一个实体来完成 某事情，就fork一个子进程 。大多数网络 服务器都 是这样做的；父进程 accept一个连接 fork一个子进程 处理客户之间 的通信 。
+但是fork存在 一些问题：
+- fork 是昂贵的：写时复制 即使有这样的技术 ，它仍然是昂贵的
+- ipc 进程 间通信 机制 。从子进程 往父进程 返回 信息比较 费力。
 
-## 二十七 IP
+同一进程 内的所有 线程是共享 全局内存，使得线程间易于共享 信息。伴随而来的是同步 问题。
+  除了共享 内存，还共享 ：
+  进程 指令 
+  大多数数据
+  打开的文件（描述符）
+  信号处理函数 和信号 处置
+  当前工作 目录 
+  用户 ID和 组id
 
+不过线程有各自的：
+  线程id
+  寄存器集合，程序计数器和栈指针 
+  栈（用于存放 局部变量 和返回 地址）
+  errno
+  信号 掩码 
+  优先级
+
+### 2.创建 和结束线程
+
+**pthread_create**
+```c
+#include <pthread.h>
+      //创建 线程，相当于进程 中的 fork
+       int pthread_create(pthread_t *restrict thread,
+                          const pthread_attr_t *restrict attr,
+                          void *(*start_routine)(void *),//注意这个func
+                          void *restrict arg);//如果我们要给线程传递多个参数 ，可以 把它们打包 成一个结构体，然后 把结构体地址传给这个起始 函数 。
+
+      
+      //等待一个给定 线程终止  ，相当于进程 中的 waitpid ；但是没有办法 等待任意 一个线程。 如果retval非空将接收 线程返回 值。
+       int pthread_join(pthread_t thread, void **retval);
+      //每个线程都 有一个所属进程 内标识 自身的id, 线程id由pthread-cretate返回 ，线程自身使用pthread_self获得它
+      pthread_t pthread_self(void);
+      //一个线程要么是可汇合的，要么是脱 离的g个可汇合 的线程终止时，它的线程id和退出状态 将留存 到另一线程对它调用 jpthread_join,脱离的线程却像守护进程 。当它终止时所有 资源 都 要释放 ，我们不能让它终止。如果一个线程需要 知道 另一个线程什么 时候 终止，最好保持 第二个线程的可汇合 状态 。
+      int pthread_detach(pthread_t tid);
+      //让一个线程终止的方法 之一
+      void pthread_exit(void *satus);
+      //另外 两个方法 是
+      启动线程的函数 pthread_create的第3个参数 可以 返回 。
+      如果进程 的main函数 返回 或者 任何 其它 线程调用 了exit整个进程 终止。
+```
+### 3. 使用线程的str_cli
+停等协议 的版本
+阻塞 io和 select函数的版本
+非阻塞 io 的版本 
+      
 ## 二十八 原始套接字
 
 ## 二十九 数据链路访问 

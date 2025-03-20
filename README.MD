@@ -2652,7 +2652,10 @@ sigio
                           void *(*start_routine)(void *),//注意这个func
                           void *restrict arg);//如果我们要给线程传递多个参数 ，可以 把它们打包 成一个结构体，然后 把结构体地址传给这个起始 函数 。
 
-      
+      /* Thread identifiers.  The structure of the attribute type is not exposed on purpose.  */
+      typedef unsigned long int pthread_t;
+
+
       //等待一个给定 线程终止  ，相当于进程 中的 waitpid ；但是没有办法 等待任意 一个线程。 如果retval非空将接收 线程返回 值。
        int pthread_join(pthread_t thread, void **retval);
       //每个线程都 有一个所属进程 内标识 自身的id, 线程id由pthread-cretate返回 ，线程自身使用pthread_self获得它
@@ -2695,7 +2698,7 @@ sigio
 获取线程特定数据可以使用 `pthread_getspecific` 函数
 设置线程特定数据可以使用 `pthread_setspecific` 函数
 删除线程特定数据可以使用 `pthread_key_delete` 函数
-
+ 
 ### 6. web客户与同时连接
 
 
@@ -2704,6 +2707,8 @@ sigio
 
 ### 8. 条件变量
 条件变量（Condition Variables）是一种用于多线程间同步和通信的机制。它允许一个线程等待一个条件，直到另一个线程改变条件状态。当条件满足时，等待的线程被唤醒，继续执行。
+
+---
 
 
 ## 二十八 原始套接字
